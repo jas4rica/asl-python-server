@@ -5,4 +5,4 @@ numpy==1.26.4
 tensorflow==2.19.1
 requests==2.32.5
 mediapipe==0.10.21
-opencv-python==4.11.0.8
+opencv-python==4.11.0.86
