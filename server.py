@@ -8,6 +8,7 @@ import requests
 
 app = FastAPI()
 
+# Allow requests from anywhere
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,22 +16,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# URLs for model and labels on GitHub
 MODEL_URL = "https://github.com/jas4rica/asl-python-server/raw/main/model_unquant.tflite"
 LABELS_URL = "https://github.com/jas4rica/asl-python-server/raw/main/labels.txt"
 
-# Load model
+# Download model
 model_path = "model_unquant.tflite"
 with open(model_path, "wb") as f:
     f.write(requests.get(MODEL_URL).content)
 
+# Load TFLite model
 interpreter = tf.lite.Interpreter(model_path=model_path)
 interpreter.allocate_tensors()
 
-# Load labels
+# Download labels
 labels_path = "labels.txt"
 with open(labels_path, "wb") as f:
     f.write(requests.get(LABELS_URL).content)
 
+# Load labels
 with open(labels_path) as f:
     labels = [line.strip().split()[-1] for line in f.readlines() if line.strip()]
 
@@ -40,12 +44,15 @@ output_details = interpreter.get_output_details()
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     try:
+        # Read uploaded image
         img_bytes = await file.read()
         image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-        image = image.resize((224, 224))
+        image = image.resize((224, 224))  # Teachable Machine default
+
         input_data = np.array(image, dtype=np.float32) / 255.0
         input_data = np.expand_dims(input_data, axis=0)
 
+        # Run inference
         interpreter.set_tensor(input_details[0]['index'], input_data)
         interpreter.invoke()
         output_data = interpreter.get_tensor(output_details[0]['index'])[0]
@@ -61,3 +68,8 @@ async def predict(file: UploadFile = File(...)):
 
     except Exception as e:
         return {"error": str(e)}
+
+# Run locally for testing
+# if __name__ == "__main__":
+#     import uvicorn
+#     uvicorn.run(app, host="0.0.0.0", port=8000)
